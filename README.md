@@ -24,5 +24,5 @@ Documentation: R Markdown file knitted as a PDF file with code, output, and comm
 
 This project offers valuable insights into various attributes of dog breeds, providing a comprehensive analysis that can be useful for breeders, owners, and enthusiasts. The code and documentation serve as a resource for understanding the analysis process.
 
-#### Tableau Dashboard Visualization:
+### Tableau Dashboard Visualization:
 The visualization presented in this project is inspired by an infographic named "Knowledge is Beautiful". The Tableau dashboard offers an interactive exploration of the analyzed data, providing insights. It aims to visually represent the findings of the analysis in a user-friendly and engaging manner.
