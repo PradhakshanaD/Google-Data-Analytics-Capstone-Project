@@ -29,8 +29,6 @@ The visualization presented in this project is inspired by an infographic named 
 
 ## Certificate
 
-## Certificate
-
 [View Certificate](https://drive.google.com/file/d/1I90IIUkaPLaKDNhDyHb_MIHga1AwG_u5/view?usp=drive_link)
 
 
