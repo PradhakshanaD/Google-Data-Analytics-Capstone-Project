@@ -26,3 +26,8 @@ This project offers valuable insights into various attributes of dog breeds, pro
 
 ### Tableau Dashboard Visualization:
 The visualization presented in this project is inspired by an infographic named "Knowledge is Beautiful". The Tableau dashboard offers an interactive exploration of the analyzed data, providing insights. It aims to visually represent the findings of the analysis in a user-friendly and engaging manner.
+
+## Certificate
+
+[![Certificate](https://drive.google.com/file/d/1I90IIUkaPLaKDNhDyHb_MIHga1AwG_u5/view?usp=drive_link])
+
