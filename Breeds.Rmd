@@ -1,0 +1,337 @@
+---
+title: "Canine Insights"
+author: "Pradhakshana Duraiswamy"
+date: "2024-03-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+## Introduction
+
+### Welcome to the documentation for the Dog Breed Analysis project. This project aims to provide comprehensive insights into various attributes of dog breeds, leveraging data collected from multiple sources including the American Kennel Club (AKC) website and other publicly available datasets.
+
+## Dataset Overview
+
+### The dataset utilized in this analysis contains information about 277 different dog breeds, sourced from the AKC and other sources. It includes details such as breed characteristics, grooming requirements, energy levels, trainability, and more. Additionally, to enrich the dataset, information on the popularity rankings of dog breeds for the years 2018 to 2022 was extracted from the American Kennel Club website using web scraping techniques with Beautiful Soup.
+
+## Disclaimer
+
+### It's important to note that the popularity rankings provided by the AKC are based solely on registration statistics. Popularity is determined by the number of registrations for each breed and does not necessarily reflect factors such as entertainment value, intelligence, or appearance. This disclaimer serves to clarify the basis of the popularity rankings utilized in this analysis.
+
+### Throughout this documentation, you will find detailed explanations of the various stages of the project, including data cleaning, exploration, feature engineering, and clustering. Visualizations and insights generated from the analysis will also be presented, providing valuable information for breeders, owners, and enthusiasts interested in understanding the characteristics and trends of different dog breeds.
+
+### Let's delve into the details of each stage of the analysis and explore the fascinating world of dog breeds!
+
+
+## Load necessary libraries
+
+```{r}
+library(readr)
+library(ggplot2)
+library(GGally)
+library("corrplot")
+library(rpart)
+library(rpart.plot)
+library(cluster)
+library(ggrepel)
+```
+
+## Set the working directory and read the file
+
+```{r}
+getwd()
+setwd("C:/Users/satba/OneDrive/Desktop/MS/Coursera/Capstone_8/Breeds")
+data<-read_csv("breeds.csv")
+head(data)
+colnames(data)
+dim(data) 
+```
+
+# 1) Data Cleaning
+
+## Created avg_weight and avg_height columns using min and max values provided for them in Excel
+## Subsetting the dataset and keeping only the necessary columns
+## Converting the chr() variables to factor()
+## Removing missing values
+
+```{r}
+##Subset the data-set to include only the necessary variables
+#?subset()
+new_data<-subset(data,select=-c(description,popularity_2018,min_height,
+                                max_height,min_weight,max_weight,min_expectancy,
+                                max_expectancy))
+head(new_data)
+dim(new_data) 
+colnames(new_data)
+str(new_data)
+
+##convert chr() variables to factor()
+new_data$Breed <- as.factor(new_data$Breed)
+new_data$temperament <- as.factor(new_data$temperament)
+new_data$group<-as.factor(new_data$group)
+new_data$grooming_frequency_category<-as.factor(new_data$grooming_frequency_category)
+new_data$shedding_category<-as.factor(new_data$shedding_category)
+new_data$energy_level_category<-as.factor(new_data$energy_level_value)
+new_data$trainability_category<-as.factor(new_data$trainability_category)
+new_data$demeanor_category<-as.factor(new_data$demeanor_category)
+new_data$`avg_height(cm)` <- as.numeric(new_data$`avg_height(cm)`)
+new_data$`avg_weight(kg)`<-as.numeric(new_data$`avg_weight(kg)`)
+new_data$`avg_lifespan(years)` <- as.numeric(new_data$`avg_lifespan(years)`)
+str(new_data)
+summary(new_data)
+
+##look for missing values
+anyNA(new_data) 
+new_data <- na.omit(new_data)
+dim(new_data) ##235 X 16
+```
+
+##To make the data more interesting let's scrap popularity ranking of dog breeds for years (2018-2022) using Beautiful soup and clean and read them here.
+
+```{r}
+popularity_2018<-read_csv("popularity_2018.csv")
+popularity_2019<-read_csv("popularity_2019.csv")
+popularity_2020<-read_csv("popularity_2020.csv")
+popularity_2021<-read_csv("popularity_2021.csv")
+popularity_2022<-read_csv("popularity_2022.csv")
+```
+
+## Merge popularity ranking data for different years with the main data-set after matching the breed names in all CSV files.
+
+```{r}
+new_data <- merge(new_data, popularity_2018, by = "Breed", all.x = TRUE)
+
+new_data <- merge(new_data, popularity_2019, by = "Breed", all.x = TRUE)
+
+new_data <- merge(new_data, popularity_2020, by = "Breed", all.x = TRUE)
+
+new_data <- merge(new_data, popularity_2021, by = "Breed", all.x = TRUE)
+
+new_data <- merge(new_data, popularity_2022, by = "Breed", all.x = TRUE)
+
+##Finding the intersection of breed names between multiple data frames
+intersection <- Reduce(intersect, list(new_data$Breed, popularity_2018$Breed, 
+                                       popularity_2019$Breed, popularity_2020$Breed, 
+                                       popularity_2021$Breed, popularity_2022$Breed))
+head(intersection)
+```
+
+#### Of the 235 breeds only 178 have the data for popularity ranking columns. Hence, I am eliminating those data that have missing rank values after merging.
+
+```{r}
+new_data<-na.omit(new_data)
+```
+
+# 2) Data Exploration and Feature Engineering
+
+## Used various visualizations to get insights about the data
+## Used histogram to understand the distribution of weight and height of breeds and based on the understanding decided on the cut-off points to create a new column named size (small, medium, large)
+
+```{r}
+##Explore the distribution of height and weight variables using histograms
+hist(new_data$`avg_height(cm)`, main = "Average Height Distribution", xlab = "Average Height (cm)")
+hist(new_data$`avg_weight(kg)`, main = "Average Weight Distribution", xlab = "Average Weight (kg)")
+
+##Feature engineering for column 'Size'
+##Create a size column and categorize dog breeds into small, medium, and large based on height and weight
+new_data$Size <- NA  ##Create a new column and initialize with NA values
+
+##Define cutoff points for height and weight categories
+height_cutoffs <- c(0, 31, 61, 81)
+weight_cutoffs <- c(0, 10, 35, 82)
+
+##Categorize size based on average height and weight
+new_data$Size[new_data$`avg_height(cm)` <= height_cutoffs[2] & 
+                new_data$`avg_weight(kg)` <= weight_cutoffs[2]] <- "Small"
+new_data$Size[new_data$`avg_height(cm)` > height_cutoffs[3] & 
+                new_data$`avg_weight(kg)` > weight_cutoffs[3]] <- "Large"
+
+##For cases that don't fit into Small or Large categories, assign Medium
+new_data$Size[is.na(new_data$Size)] <- "Medium"
+
+##Print the first few rows to verify the new column
+head(new_data$Size)
+
+##Calculate the sum of occurrences of the categories
+sum(new_data$Size == "Small")
+sum(new_data$Size == "Medium")
+sum(new_data$Size == "Large")
+
+##Convert 'Size' column to a factor
+new_data$Size <- as.factor(new_data$Size)
+```
+
+## Feature engineering for column 'score'. Create a score column with data score for each dog breed by assigning weights to variables based on personal knowledge.
+
+```{r}
+##Assigning weights to attributes
+weight_longevity <- 0.8
+weight_temperament <- 0.8
+weight_activity <- 0.6
+weight_trainability <- 0.6
+weight_grooming <- 0.4
+weight_shedding <- 0.4
+
+##Calculate score for each breed
+new_data$score <- with(new_data, (new_data$'avg_lifespan(years)' * weight_longevity) + 
+                         (demeanor_value * weight_temperament) + 
+                         (energy_level_value * weight_activity) + 
+                         (trainability_value * weight_trainability) - 
+                         (grooming_frequency_value * weight_grooming) - 
+                         (shedding_value * weight_shedding))
+
+##Print first few rows to verify
+head(new_data$score)
+summary(new_data$score)
+
+##Write the merged data-set to a CSV file
+write.csv(new_data, file = "new_data.csv", row.names = FALSE)
+dim(new_data)
+```
+
+#### This csv file was used to build Dashboards in Tableau. The packaged workbook and the png image of the dashboards can be found in this project folder.
+
+### Look for outliers 
+### A Z-score, also known as a standard score, is a method to look for outliers and is a measure of how many standard deviations a data point is from the mean of the data-set. It indicates how 
+### far a particular observation is from the mean in terms of standard deviation units.
+
+```{r}
+
+z_scores <- scale(new_data$`avg_weight(kg)`)
+outlier_indices <- which(abs(z_scores) > 3) 
+outlier_indices 
+
+##plot the outliers
+plot(new_data$`avg_weight(kg)`, main = "Outliers Detection (weight)", pch = 19, 
+     col = ifelse(abs(z_scores) > 3, "red", "blue"))
+legend("topleft", legend = c("Normal", "Outlier"), col = c("blue", "red"), pch = 19)
+text(x = outlier_indices, y = new_data$`avg_weight(kg)`[outlier_indices], 
+     labels = new_data$Breed[outlier_indices], pos = 4, col = "red", srt = -90)
+```
+
+```{r}
+z_scores1 <- scale(new_data$score)
+outlier_indices <- which(abs(z_scores1) > 3)
+plot(new_data$score, main = "Outliers Detection (score)", pch = 19, 
+     col = ifelse(abs(z_scores1) > 3, "red", "blue"))
+legend("topleft", legend = c("Normal", "Outlier"), col = c("blue", "red"), pch = 19)
+text(x = outlier_indices, y = new_data$score[outlier_indices], 
+     labels = new_data$Breed[outlier_indices], pos = 4, col = "red", srt = 90)
+```
+
+# 3) Further Exploration
+
+## Did further exploration with data using visualizations.
+## Created a data frame with only 3 variables and did some visualizations to understand the data.
+
+```{r}
+##Looking for dog breeds with a particular demeanor category.
+##Create a data frame to store breed information along with demeanor values and categories
+df <- data.frame(new_data$Breed, new_data$demeanor_value, new_data$demeanor_category)
+
+##Rename columns for better readability
+colnames(df) <- c("Breed", "Demeanor Value", "Demeanor Category")
+
+##Filter the data frame for breeds categorized as "Aloof/Wary"
+aloof_breeds <- subset(df, new_data$demeanor_category == "Aloof/Wary")
+aloof_breeds
+
+##Plot the breeds categorized as "Aloof/Wary"
+barplot(aloof_breeds$`Demeanor Value`, names.arg = aloof_breeds$Breed, 
+        main = "Breeds Categorized as 'Aloof/Wary'", xlab = "Breeds", ylab = "Demeanor Value")
+```
+
+#### Similarly, other categories within variables can be explored.
+
+## Experimented with scatterplot to understand the correlations/relationships between some variables. Found a strong correlation between weight and lifespan.
+
+```{r}
+##Scatterplot matrix to view the relationship between continuous variables.
+pairs(new_data[, c("Rank_2018", "avg_lifespan(years)", "avg_weight(kg)", "score", "Size")],
+      col = ifelse(new_data$Size == "Small", "blue", ifelse(new_data$Size == "Medium", "black", "red")), 
+      pch = ifelse(new_data$Size == "Small", 16, ifelse(new_data$Size == "Medium", 17, 18)), 
+      main = "Scatterplot Matrix of Key Variables", 
+      labels = c("Rank 2018", "Avg Lifespan (years)", "Avg Weight (kg)", "Score","Size"), 
+      cex.axis = 1.2, cex.lab = 1.2,
+      cex = 1.5) 
+```
+
+#### If the points on the plot form a clear linear pattern, it indicates a strong correlation between the variables.For example Avg_weight(kg) and Avg_Lifespan(Years).
+
+
+## Experimented with Barplot and Line Graph.
+
+```{r}
+##Bar plots can be used to explore categorical variables
+par(mar = c(12, 5, 5, 5))
+barplot(table(new_data$group), main = "Group Distribution", las = 2)
+```
+
+```{r}
+##Line plot for popularity rankings (years 2018 and 2022)
+plot(new_data$Rank_2018, type = "l", col = "red", ylim = c(1,200), xlab = "Breed", 
+     ylab = "Popularity Rank", main = "Popularity Rankings 2018-2022")
+lines(new_data$Rank_2022, col = "purple")
+```
+
+#### We can see from the line graph that the lines deviate from each other at some points but intersect mostly.
+
+# 4) K-means Clustering
+
+## Used k-means algorithm to divide dogs into 4 categories
+## Chose k-means to cluster as I was aware of the categories I wanted
+## Clustered dogs into hotdogs, overlooked treasures, rightly ignored, and overrated dogs
+## Used ggplot to plot this visualization
+
+```{r}
+##Select relevant features for clustering
+features <- c("score", "Rank_2022")
+
+##Prepare data by selecting features
+clustering_data <- new_data[, features]
+
+##Scale the features to ensure they have equal importance
+scaled_data <- scale(clustering_data)
+
+set.seed(123)
+##Determine the no. of clusters (k = 4 for hotdogs, overlooked, overrated & rightly ignored)
+k <- 4
+
+##Perform k-means clustering
+kmeans_result <- kmeans(scaled_data, centers = k)
+
+##Assign cluster labels to each breed
+cluster_labels <- kmeans_result$cluster
+
+##Add cluster labels back to the original dataset
+new_data$cluster <- cluster_labels
+
+##Display the count of breeds in each cluster
+table(new_data$cluster)
+
+##Assign custom labels to the clusters based on their characteristics
+cluster_names <- c("Overrated", "Overlooked Treasures", "Hot Dogs","Rightly Ignored")
+
+##Define colors for the clusters
+cluster_colors <- c("blue", "green", "red", "purple")
+
+##Rename cluster labels in the dataset
+new_data$cluster_label <- cluster_names[new_data$cluster]
+
+##Create a ggplot object
+ggplot(new_data, aes(x = score, y = Rank_2022, color = factor(cluster))) +
+  geom_point(size = 3) +  # Adjust point size
+  labs(title = "K-means Clustering of Dog Breeds", x = "Score", y = "Popularity Rank 2022") +  
+  scale_color_manual(values = cluster_colors, labels = cluster_names) +  
+  geom_text_repel(aes(label = Breed), box.padding = 0.5, point.padding = 0.1, 
+                  segment.color = "transparent", size = 2, max.overlaps = 10) +  
+  theme_minimal() +  
+  theme(legend.position = "bottom")  
+```
+
