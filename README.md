@@ -12,3 +12,11 @@ I delved deeper into the data using additional visualizations. For instance, I c
 
 ## 4) Clustering: 
 In this stage, I applied the k-means algorithm to cluster the dogs into four categories. Since I had predefined categories in mind, I opted for k-means clustering. The dogs were clustered into categories labeled as 'hotdogs', 'overlooked treasures', 'rightly ignored', and 'overrated'. I then used ggplot to visualize this clustering.
+
+## Project Structure:
+Code: Contains R scripts used for data cleaning, exploration, feature engineering, clustering, and visualization.
+Data: Includes datasets used in the analysis, including initial data, merged datasets, and the final CSV file with cleaned and processed data.
+Visualizations: Stores visualizations generated during the analysis process.
+Documentation: R Markdown file knitted as a PDF file with code, output, and comments.
+
+This project offers valuable insights into various attributes of dog breeds, providing a comprehensive analysis that can be useful for breeders, owners, and enthusiasts. The code and documentation serve as a resource for understanding the analysis process.
